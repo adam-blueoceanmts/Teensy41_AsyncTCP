@@ -53,7 +53,7 @@ This library is based on, modified from:
 1. [Hristo Gochkov's ESPAsyncTCP](https://github.com/me-no-dev/ESPAsyncTCP)
 2. [Hristo Gochkov's AsyncTCP](https://github.com/me-no-dev/AsyncTCP)
 
-to apply the better and faster **asynchronous** feature of the **powerful** [ESPAsyncTCP Library](https://github.com/me-no-dev/ESPAsyncTCP) without SSL to Teensy 4.1 using LwIP-based [QNEthernet Library](https://github.com/ssilverman/QNEthernet), and will be the base for future or current and more advanced Async libraries, such as [AsyncHTTPRequest](https://github.com/khoih-prog/AsyncHTTPRequest), [AsyncHTTPSRequest](https://github.com/khoih-prog/AsyncHTTPSRequest), [AsyncMQTT_Generic](https://github.com/khoih-prog/AsyncMQTT_Generic), Teensy41_AsyncWebServer, Teensy41_AsyncUDP, Teensy41_AsyncDNSServer, Teensy41_AsyncTCP_SSL, etc.
+to apply the better and faster **asynchronous** feature of the **powerful** [ESPAsyncTCP Library](https://github.com/me-no-dev/ESPAsyncTCP) without SSL to Teensy 4.1 using LwIP-based [QNEthernet Library](https://github.com/ssilverman/QNEthernet), and will be the base for future or current and more advanced Async libraries, such as [AsyncHTTPRequest_Generic](https://github.com/khoih-prog/AsyncHTTPRequest_Generic), [AsyncHTTPRequest_Generic](https://github.com/khoih-prog/AsyncHTTPRequest_Generic), [AsyncMQTT_Generic](https://github.com/khoih-prog/AsyncMQTT_Generic), Teensy41_AsyncWebServer, Teensy41_AsyncUDP, Teensy41_AsyncDNSServer, Teensy41_AsyncTCP_SSL, etc.
 
 
 #### Why Async is better
