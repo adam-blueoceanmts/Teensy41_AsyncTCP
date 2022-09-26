@@ -20,11 +20,12 @@
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  
-  Version: 1.0.0
+  Version: 1.1.0
   
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
+  1.1.0    K Hoang     26/09/2022 Fix issue with slow browsers or network. Clean up. Remove hard-code if possible
  *****************************************************************************************************************************/
 
 #pragma once
@@ -32,10 +33,14 @@
 #ifndef _TEENSY41_ASYNC_TCP_SYNC_CLIENT_HPP_
 #define _TEENSY41_ASYNC_TCP_SYNC_CLIENT_HPP_
 
+/////////////////////////////////////////////////
+
 #if defined(LWIP_NETIF_TX_SINGLE_PBUF)
 	#undef LWIP_NETIF_TX_SINGLE_PBUF
 	#define LWIP_NETIF_TX_SINGLE_PBUF      1
 #endif
+
+/////////////////////////////////////////////////
 
 #include "Client.h"
 
@@ -46,8 +51,12 @@
   #define CONST
 #endif
 
+/////////////////////////////////////////////////
+
 class cbuf;
 class AsyncClient;
+
+/////////////////////////////////////////////////
 
 class SyncClient: public Client 
 {
@@ -157,5 +166,7 @@ class SyncClient: public Client
     int read();
     int read(uint8_t *data, size_t len);
 };
+
+/////////////////////////////////////////////////
 
 #endif // _TEENSY41_ASYNC_TCP_SYNC_CLIENT_HPP_

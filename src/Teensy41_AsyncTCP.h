@@ -15,11 +15,12 @@
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  
-  Version: 1.0.0
+  Version: 1.1.0
   
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
+  1.1.0    K Hoang     26/09/2022 Fix issue with slow browsers or network. Clean up. Remove hard-code if possible
  *****************************************************************************************************************************/
 
 /****************************************************************************************************************************
@@ -48,6 +49,8 @@
 #ifndef _TEENSY41_ASYNC_TCP_H_
 #define _TEENSY41_ASYNC_TCP_H_
 
+/////////////////////////////////////////////////
+
 #if ( defined(CORE_TEENSY) && defined(__IMXRT1062__) && defined(ARDUINO_TEENSY41) )
   // For Teensy 4.1
   #define BOARD_NAME              "TEENSY 4.1"
@@ -57,6 +60,8 @@
 #else
   #error Only Teensy 4.1 supported
 #endif
+
+/////////////////////////////////////////////////
 
 #include <QNEthernet.h>
 

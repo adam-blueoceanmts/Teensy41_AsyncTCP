@@ -15,11 +15,12 @@
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  
-  Version: 1.0.0
+  Version: 1.1.0
   
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
+  1.1.0    K Hoang     26/09/2022 Fix issue with slow browsers or network. Clean up. Remove hard-code if possible
  *****************************************************************************************************************************/
 
 /****************************************************************************************************************************
@@ -48,14 +49,26 @@
 #ifndef _TEENSY41_ASYNC_TCP_HPP_
 #define _TEENSY41_ASYNC_TCP_HPP_
 
-#define TEENSY41_ASYNC_TCP_VERSION          "Teensy41_AsyncTCP v1.0.0"
+#define TEENSY41_ASYNC_TCP_VERSION          "Teensy41_AsyncTCP v1.1.0"
 
 #define TEENSY41_ASYNC_TCP_VERSION_MAJOR    1
-#define TEENSY41_ASYNC_TCP_VERSION_MINOR    0
-#define TEENSY41_ASYNC_TCP_VERSION_PATCH    1
+#define TEENSY41_ASYNC_TCP_VERSION_MINOR    1
+#define TEENSY41_ASYNC_TCP_VERSION_PATCH    0
 
-#define TEENSY41_ASYNC_TCP_VERSION_INT      1000000
+#define TEENSY41_ASYNC_TCP_VERSION_INT      1001000
 
+/////////////////////////////////////////////
+
+#if ASYNC_TCP_SSL_ENABLED
+  #undef ASYNC_TCP_SSL_ENABLED
+  #define ASYNC_TCP_SSL_ENABLED			false
+  
+  #warning ASYNC_TCP_SSL_ENABLED is not ready yet. Disable it
+#endif
+
+#define DEBUG_T41_ASYNC_TCP       true
+
+/////////////////////////////////////////////
 #include <QNEthernet.h>
 
 #include "Teensy41_AsyncTCP_Debug.h"
@@ -72,6 +85,8 @@ extern "C"
   #include "lwip/tcp.h"
   #include "lwip/pbuf.h"
 };
+
+/////////////////////////////////////////////////
 
 class AsyncClient;
 class AsyncServer;
@@ -96,6 +111,8 @@ struct tcp_pcb;
   typedef struct SSL_CTX_ SSL_CTX;
 #endif
 
+/////////////////////////////////////////////////
+
 typedef std::function<void(void*, AsyncClient*)> AcConnectHandler;
 typedef std::function<void(void*, AsyncClient*, size_t len, uint32_t time)> AcAckHandler;
 typedef std::function<void(void*, AsyncClient*, err_t error)> AcErrorHandler;
@@ -103,6 +120,8 @@ typedef std::function<void(void*, AsyncClient*, void *data, size_t len)> AcDataH
 typedef std::function<void(void*, AsyncClient*, struct pbuf *pb)> AcPacketHandler;
 typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler;
 typedef std::function<void(void*, size_t event)> AsNotifyHandler;
+
+/////////////////////////////////////////////////
 
 enum error_events 
 {
@@ -119,6 +138,8 @@ enum error_events
 // DEBUG_MORE is for gathering more information on which CBs close events are
 // occuring and count.
 // #define DEBUG_MORE 1
+
+/////////////////////////////////////////////////
 
 class ACErrorTracker 
 {
@@ -312,7 +333,7 @@ class AsyncClient
       void    ackLater(){ _ack_pcb = false; } //will not ack the current packet. Call from onData
       bool    isRecvPush(){ return !!(_recv_pbuf_flags & PBUF_FLAG_PUSH); }
       
-#if DEBUG_ESP_ASYNC_TCP
+#if DEBUG_T41_ASYNC_TCP
       size_t getConnectionId() const { return _errorTracker->getConnectionId();}
 #endif
 
@@ -376,6 +397,8 @@ class AsyncClient
         return _errorTracker->getCloseError();
       }
 };
+
+/////////////////////////////////////////////////
 
 #if ASYNC_TCP_SSL_ENABLED
   typedef std::function<int(void* arg, const char *filename, uint8_t **buf)> AcSSlFileHandler;

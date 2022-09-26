@@ -20,17 +20,20 @@
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  
-  Version: 1.0.0
+  Version: 1.1.0
   
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
+  1.1.0    K Hoang     26/09/2022 Fix issue with slow browsers or network. Clean up. Remove hard-code if possible
  *****************************************************************************************************************************/
 
 #pragma once
 
 #ifndef _TEENSY41_ASYNC_PRINTER_IMPL_H_
 #define _TEENSY41_ASYNC_PRINTER_IMPL_H_
+
+/////////////////////////////////////////////////
 
 AsyncPrinter::AsyncPrinter()
   : _client(NULL)
@@ -42,6 +45,8 @@ AsyncPrinter::AsyncPrinter()
   , _tx_buffer_size(TCP_MSS)
   , next(NULL)
 {}
+
+/////////////////////////////////////////////////
 
 AsyncPrinter::AsyncPrinter(AsyncClient *client, size_t txBufLen)
   : _client(client)
@@ -62,10 +67,14 @@ AsyncPrinter::AsyncPrinter(AsyncClient *client, size_t txBufLen)
   }
 }
 
+/////////////////////////////////////////////////
+
 AsyncPrinter::~AsyncPrinter() 
 {
   _on_close();
 }
+
+/////////////////////////////////////////////////
 
 void AsyncPrinter::onData(ApDataHandler cb, void *arg) 
 {
@@ -73,11 +82,15 @@ void AsyncPrinter::onData(ApDataHandler cb, void *arg)
   _data_arg = arg;
 }
 
+/////////////////////////////////////////////////
+
 void AsyncPrinter::onClose(ApCloseHandler cb, void *arg) 
 {
   _close_cb = cb;
   _close_arg = arg;
 }
+
+/////////////////////////////////////////////////
 
 int AsyncPrinter::connect(IPAddress ip, uint16_t port) 
 {
@@ -88,7 +101,7 @@ int AsyncPrinter::connect(IPAddress ip, uint16_t port)
 
   if (_client == NULL)
   {
-    T41_ASYNC_LOGERROR("AsyncPrinter::connect(ip): Error NULL _client");
+    ATCP_LOGERROR("AsyncPrinter::connect(ip): Error NULL _client");
   }
 
   _client->onConnect([](void *obj, AsyncClient * c) {
@@ -107,6 +120,8 @@ int AsyncPrinter::connect(IPAddress ip, uint16_t port)
   return 0;
 }
 
+/////////////////////////////////////////////////
+
 int AsyncPrinter::connect(const char *host, uint16_t port) 
 {
   if (_client != NULL && connected())
@@ -116,7 +131,7 @@ int AsyncPrinter::connect(const char *host, uint16_t port)
   
   if (_client == NULL)
   {
-    T41_ASYNC_LOGERROR("AsyncPrinter::connect(host): Error NULL _client");
+    ATCP_LOGERROR("AsyncPrinter::connect(host): Error NULL _client");
   }
 
   _client->onConnect([](void *obj, AsyncClient * c) 
@@ -135,6 +150,8 @@ int AsyncPrinter::connect(const char *host, uint16_t port)
   return 0;
 }
 
+/////////////////////////////////////////////////
+
 void AsyncPrinter::_onConnect(AsyncClient *c) 
 {
   (void) c;
@@ -150,11 +167,13 @@ void AsyncPrinter::_onConnect(AsyncClient *c)
 
   if (_tx_buffer)
   {
-    T41_ASYNC_LOGERROR("AsyncPrinter::_onConnect: Error NULL _tx_buffer");
+    ATCP_LOGERROR("AsyncPrinter::_onConnect: Error NULL _tx_buffer");
   }
 
   _attachCallbacks();
 }
+
+/////////////////////////////////////////////////
 
 AsyncPrinter::operator bool() 
 {
@@ -182,7 +201,7 @@ AsyncPrinter & AsyncPrinter::operator=(const AsyncPrinter &other)
 
   if (_tx_buffer == NULL)
   {
-    T41_ASYNC_LOGERROR("AsyncPrinter:operator=: Error NULL _tx_buffer");
+    ATCP_LOGERROR("AsyncPrinter:operator=: Error NULL _tx_buffer");
   }
 
   _client = other._client;
@@ -191,10 +210,14 @@ AsyncPrinter & AsyncPrinter::operator=(const AsyncPrinter &other)
   return *this;
 }
 
+/////////////////////////////////////////////////
+
 size_t AsyncPrinter::write(uint8_t data) 
 {
   return write(&data, 1);
 }
+
+/////////////////////////////////////////////////
 
 size_t AsyncPrinter::write(const uint8_t *data, size_t len) 
 {
@@ -232,16 +255,22 @@ size_t AsyncPrinter::write(const uint8_t *data, size_t len)
   return len;
 }
 
+/////////////////////////////////////////////////
+
 bool AsyncPrinter::connected() 
 {
   return (_client != NULL && _client->connected());
 }
+
+/////////////////////////////////////////////////
 
 void AsyncPrinter::close() 
 {
   if (_client != NULL)
     _client->close(true);
 }
+
+/////////////////////////////////////////////////
 
 size_t AsyncPrinter::_sendBuffer()
 {
@@ -260,7 +289,7 @@ size_t AsyncPrinter::_sendBuffer()
   if (out == NULL)
   {
     // Connection should be aborted instead
-    T41_ASYNC_LOGERROR("AsyncPrinter:_sendBuffer: Error NULL out");
+    ATCP_LOGERROR("AsyncPrinter:_sendBuffer: Error NULL out");
   }
 
   _tx_buffer->read(out, available);
@@ -270,11 +299,15 @@ size_t AsyncPrinter::_sendBuffer()
   return sent;
 }
 
+/////////////////////////////////////////////////
+
 void AsyncPrinter::_onData(void *data, size_t len) 
 {
   if (_data_cb)
     _data_cb(_data_arg, this, (uint8_t*)data, len);
 }
+
+/////////////////////////////////////////////////
 
 void AsyncPrinter::_on_close() 
 {
@@ -293,6 +326,8 @@ void AsyncPrinter::_on_close()
   if (_close_cb)
     _close_cb(_close_arg, this);
 }
+
+/////////////////////////////////////////////////
 
 void AsyncPrinter::_attachCallbacks() 
 {
@@ -322,5 +357,7 @@ void AsyncPrinter::_attachCallbacks()
     ((AsyncPrinter*)(obj))->_onData(data, len);
   }, this);
 }
+
+/////////////////////////////////////////////////
 
 #endif		// _TEENSY41_ASYNC_PRINTER_IMPL_H_

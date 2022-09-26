@@ -20,11 +20,12 @@
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  
-  Version: 1.0.0
+  Version: 1.1.0
   
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
+  1.1.0    K Hoang     26/09/2022 Fix issue with slow browsers or network. Clean up. Remove hard-code if possible
  *****************************************************************************************************************************/
 
 #pragma once
@@ -38,10 +39,14 @@
 
 #include "cbuf.hpp"
 
+/////////////////////////////////////////////////
+
 class AsyncPrinter;
 
 typedef std::function<void(void*, AsyncPrinter*, uint8_t*, size_t)> ApDataHandler;
 typedef std::function<void(void*, AsyncPrinter*)> ApCloseHandler;
+
+/////////////////////////////////////////////////
 
 class AsyncPrinter: public Print
 {
@@ -84,5 +89,7 @@ class AsyncPrinter: public Print
     void _on_close();
     void _attachCallbacks();
 };
+
+/////////////////////////////////////////////////
 
 #endif 	// _TEENSY41_ASYNC_PRINTER_HPP_

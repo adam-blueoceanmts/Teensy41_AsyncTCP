@@ -19,11 +19,12 @@
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  
-  Version: 1.0.0
+  Version: 1.1.0
   
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
+  1.1.0    K Hoang     26/09/2022 Fix issue with slow browsers or network. Clean up. Remove hard-code if possible
  *****************************************************************************************************************************/
 
 #pragma once
@@ -34,6 +35,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+
+/////////////////////////////////////////////////
 
 class cbuf 
 {
@@ -85,5 +88,7 @@ class cbuf
     char* _end;
 
 };
+
+/////////////////////////////////////////////////
 
 #endif		// _TEENSY41_ASYNC_TCP_CBUF_HPP_

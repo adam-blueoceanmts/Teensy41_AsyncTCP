@@ -22,11 +22,12 @@
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  Version: 1.0.0
-
+  Version: 1.1.0
+  
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
+  1.1.0    K Hoang     26/09/2022 Fix issue with slow browsers or network. Clean up. Remove hard-code if possible
  *****************************************************************************************************************************/
 
 #pragma once
@@ -34,12 +35,16 @@
 #ifndef _TEENSY41_ASYNC_TCP_BUFFER_HPP_
 #define _TEENSY41_ASYNC_TCP_BUFFER_HPP_
 
+/////////////////////////////////////////////////
+
 #include <Arduino.h>
 #include <cbuf.hpp>
 
 #include "Teensy41_AsyncTCP.hpp"
 
 #include "Teensy41_AsyncTCP_Debug.h"
+
+/////////////////////////////////////////////////
 
 typedef enum 
 {
@@ -49,6 +54,8 @@ typedef enum
   ATB_RX_MODE_TERMINATOR,
   ATB_RX_MODE_TERMINATOR_STRING
 } atbRxMode_t;
+
+/////////////////////////////////////////////////
 
 class AsyncTCPbuffer: public Print 
 {
@@ -117,5 +124,7 @@ class AsyncTCPbuffer: public Print
     void _rxData(uint8_t *buf, size_t len);
     size_t _handleRxBuffer(uint8_t *buf, size_t len);
 };
+
+/////////////////////////////////////////////////
 
 #endif // _TEENSY41_ASYNC_TCP_BUFFER_HPP_

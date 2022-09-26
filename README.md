@@ -25,6 +25,11 @@
   * [VS Code & PlatformIO](#vs-code--platformio)
 * [HOWTO Fix `Multiple Definitions` Linker Error](#howto-fix-multiple-definitions-linker-error)
 * [Orignal documentation](#Orignal-documentation)
+  * [AsyncClient and AsyncServer](#AsyncClient-and-AsyncServer)
+  * [AsyncPrinter](#AsyncPrinter)
+  * [AsyncTCPbuffer](#AsyncTCPbuffer)
+  * [SyncClient](#SyncClient)
+* [Libraries currently depend on this library](#Libraries-currently-depend-on-this-library) 
 * [Examples](#examples)
   * [1. multiFileProject](examples/multiFileProject)
 * [Debug Terminal Output Samples](#debug-terminal-output-samples) 
@@ -53,7 +58,7 @@ This library is based on, modified from:
 1. [Hristo Gochkov's ESPAsyncTCP](https://github.com/me-no-dev/ESPAsyncTCP)
 2. [Hristo Gochkov's AsyncTCP](https://github.com/me-no-dev/AsyncTCP)
 
-to apply the better and faster **asynchronous** feature of the **powerful** [ESPAsyncTCP Library](https://github.com/me-no-dev/ESPAsyncTCP) without SSL to Teensy 4.1 using LwIP-based [QNEthernet Library](https://github.com/ssilverman/QNEthernet), and will be the base for future or current and more advanced Async libraries, such as [AsyncHTTPRequest_Generic](https://github.com/khoih-prog/AsyncHTTPRequest_Generic), [AsyncHTTPRequest_Generic](https://github.com/khoih-prog/AsyncHTTPRequest_Generic), [AsyncMQTT_Generic](https://github.com/khoih-prog/AsyncMQTT_Generic), Teensy41_AsyncWebServer, Teensy41_AsyncUDP, Teensy41_AsyncDNSServer, Teensy41_AsyncTCP_SSL, etc.
+to apply the better and faster **asynchronous** feature of the **powerful** [ESPAsyncTCP Library](https://github.com/me-no-dev/ESPAsyncTCP) without SSL to Teensy 4.1 using LwIP-based [QNEthernet Library](https://github.com/ssilverman/QNEthernet), and will be the base for future or current and more advanced Async libraries, such as [AsyncHTTPRequest_Generic](https://github.com/khoih-prog/AsyncHTTPRequest_Generic), [AsyncHTTPRequest_Generic](https://github.com/khoih-prog/AsyncHTTPRequest_Generic), [AsyncMQTT_Generic](https://github.com/khoih-prog/AsyncMQTT_Generic), [AsyncWebServer_Teensy41](https://github.com/khoih-prog/AsyncWebServer_Teensy41), [AsyncUDP_Teensy41](https://github.com/khoih-prog/AsyncUDP_Teensy41), [AsyncDNSServer_Teensy41](https://github.com/khoih-prog/AsyncDNSServer_Teensy41), AsyncTCP_SSL_Teensy41, etc.
 
 
 #### Why Async is better
@@ -83,8 +88,8 @@ to apply the better and faster **asynchronous** feature of the **powerful** [ESP
 ## Prerequisites
 
  1. [`Arduino IDE 1.8.19+` for Arduino](https://github.com/arduino/Arduino). [![GitHub release](https://img.shields.io/github/release/arduino/Arduino.svg)](https://github.com/arduino/Arduino/releases/latest)
- 2. [`Teensy core v1.56+`](https://www.pjrc.com/teensy/td_download.html) for Teensy 4.1
- 3. [`QNEthernet Library version v0.13.0+`](https://github.com/ssilverman/QNEthernet) for Teensy 4.1 built-in Ethernet.
+ 2. [`Teensy core v1.57+`](https://www.pjrc.com/teensy/td_download.html) for Teensy 4.1
+ 3. [`QNEthernet Library version v0.15.0+`](https://github.com/ssilverman/QNEthernet) for Teensy 4.1 built-in Ethernet.
 
 ---
 ---
@@ -101,9 +106,9 @@ You can also use this link [![arduino-library-badge](https://www.ardu-badge.com/
 Another way to install is to:
 
 1. Navigate to [**Teensy41_AsyncTCP**](https://github.com/khoih-prog/Teensy41_AsyncTCP) page.
-2. Download the latest release `Teensy41_AsyncTCP-master.zip`.
-3. Extract the zip file to `Teensy41_AsyncTCP-master` directory 
-4. Copy whole `Teensy41_AsyncTCP-master` folder to Arduino libraries' directory such as `~/Arduino/libraries/`.
+2. Download the latest release `Teensy41_AsyncTCP-main.zip`.
+3. Extract the zip file to `Teensy41_AsyncTCP-main` directory 
+4. Copy whole `Teensy41_AsyncTCP-main` folder to Arduino libraries' directory such as `~/Arduino/libraries/`.
 
 ### VS Code & PlatformIO
 
@@ -146,9 +151,37 @@ Check [AsyncTCP Library](https://github.com/me-no-dev/AsyncTCP)
 
 This is a fully asynchronous TCP library, aimed at enabling trouble-free, multi-connection network environment for **Teensy 4.1 using QNEthernet Library**.
 
+### AsyncClient and AsyncServer
+
+The base classes on which everything else is built. They expose all possible scenarios, but are really raw and require more skills to use.
+
+### AsyncPrinter
+
+This class can be used to send data like any other `Print` interface (`Serial` for example).
+
+The object then can be used outside of the Async callbacks (the loop) and receive asynchronously data using `onData`. The object can be checked if the underlying `AsyncClient`is connected, or hook to the `onDisconnect` callback.
+
+### AsyncTCPbuffer
+
+This class is really similar to the `AsyncPrinter`, but it can buffer some of the incoming data.
+
+### SyncClient
+
+It is exactly what it sounds like. This is a standard, synchronous blocking TCP Client you're used to.
+
+
 ---
 ---
 
+### Libraries currently depend on this library
+
+1. [AsyncWebServer_Teensy41](https://github.com/khoih-prog/AsyncWebServer_Teensy41) [![GitHub release](https://img.shields.io/github/release/khoih-prog/AsyncWebServer_Teensy41.svg)](https://github.com/khoih-prog/AsyncWebServer_Teensy41/releases/latest)
+2. [AsyncHTTPRequest_Teensy41](https://github.com/khoih-prog/AsyncHTTPRequest_Teensy41) [![GitHub release](https://img.shields.io/github/release/khoih-prog/AsyncHTTPRequest_Teensy41.svg)](https://github.com/khoih-prog/AsyncHTTPRequest_Teensy41/releases/latest)
+3. [AsyncMQTT_Generic](https://github.com/khoih-prog/AsyncMQTT_Generic) [![GitHub release](https://img.shields.io/github/release/khoih-prog/AsyncMQTT_Generic.svg)](https://github.com/khoih-prog/AsyncMQTT_Generic/releases/latest)
+
+
+---
+---
 
 ### Examples
 
@@ -166,7 +199,7 @@ Following is the debug terminal when running example [FullyFeatured_QNEthernet](
 
 ```
 Starting FullyFeatured_QNEthernet on TEENSY 4.1
-AsyncMQTT_Generic v1.3.0 for Teensy 4.1 QNEthernet
+AsyncMQTT_Generic v1.7.0 for Teensy 4.1 QNEthernet
 Initialize Ethernet using DHCP => Connected! IP address:192.168.2.107
 Connecting to MQTT...
 Connected to MQTT broker: broker.emqx.io, port: 1883
@@ -231,7 +264,7 @@ Following is the debug terminal when running example [FullyFeatured_QNEthernet](
 
 ```
 Starting FullyFeatured_QNEthernet on TEENSY 4.1
-AsyncMQTT_Generic v1.3.0 for Teensy 4.1 QNEthernet
+AsyncMQTT_Generic v1.7.0 for Teensy 4.1 QNEthernet
 Initialize Ethernet using static IP => Connected! IP address:192.168.2.222
 Connecting to MQTT...
 Connected to MQTT broker: broker.emqx.io, port: 1883
@@ -334,7 +367,9 @@ Submit issues to: [Teensy41_AsyncTCP issues](https://github.com/khoih-prog/Teens
 3. Add debug feature
 4. Use `h-only` style library
 5. Add example [multiFileProject](examples/multiFileProject) to demo for multiple-file project to avoid `multiple-definitions` linker error
-
+6. Fix issue with slow browsers or network
+7. Remove hard-code if possible
+8. Improve debug messages by adding functions to display `error/state messages` instead of `cryptic error/state number`
 
 ---
 ---
