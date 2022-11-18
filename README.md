@@ -24,7 +24,7 @@
   * [Manual Install](#manual-install)
   * [VS Code & PlatformIO](#vs-code--platformio)
 * [HOWTO Fix `Multiple Definitions` Linker Error](#howto-fix-multiple-definitions-linker-error)
-* [Orignal documentation](#Orignal-documentation)
+* [Original documentation](#Original-documentation)
   * [AsyncClient and AsyncServer](#AsyncClient-and-AsyncServer)
   * [AsyncPrinter](#AsyncPrinter)
   * [AsyncTCPbuffer](#AsyncTCPbuffer)
@@ -145,7 +145,7 @@ Check the new [**multiFileProject** example](examples/multiFileProject) for a `H
 ---
 
 
-## Orignal documentation
+## Original documentation
 
 Check [AsyncTCP Library](https://github.com/me-no-dev/AsyncTCP)
 
