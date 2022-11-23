@@ -1,38 +1,38 @@
 /****************************************************************************************************************************
   SyncClient_Impl.h
-  
+
   Asynchronous TCP library for Espressif MCUs
 
   Copyright (c) 2016 Hristo Gochkov. All rights reserved.
   This file is part of the esp8266 core for Arduino environment.
-   
+
   Teensy41_AsyncTCP is a library for Teensy4.1 using LwIP-based QNEthernet
-  
+
   Based on and modified from :
-  
+
   1) ESPAsyncTCP    (https://github.com/me-no-dev/ESPAsyncTCP)
   2) AsyncTCP       (https://github.com/me-no-dev/AsyncTCP)
-  
+
   Built by Khoi Hoang https://github.com/khoih-prog/Teensy41_AsyncTCP
-  
-  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License 
+
+  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
   as published bythe Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
- 
+
   Version: 1.1.0
-  
+
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
   1.1.0    K Hoang     26/09/2022 Fix issue with slow browsers or network. Clean up. Remove hard-code if possible
  *****************************************************************************************************************************/
- 
+
 #pragma once
 
 #ifndef _TEENSY41_ASYNC_TCP_SYNC_CLIENT_IMPL_H_
 #define _TEENSY41_ASYNC_TCP_SYNC_CLIENT_IMPL_H_
- 
+
 #include "Arduino.h"
 #include "SyncClient.hpp"
 
@@ -167,9 +167,9 @@ int SyncClient::unref()
 /////////////////////////////////////////////////
 
 #if ASYNC_TCP_SSL_ENABLED
-int SyncClient::_connect(const IPAddress& ip, uint16_t port, bool secure)
+  int SyncClient::_connect(const IPAddress& ip, uint16_t port, bool secure)
 #else
-int SyncClient::_connect(const IPAddress& ip, uint16_t port)
+  int SyncClient::_connect(const IPAddress& ip, uint16_t port)
 #endif
 {
   if (connected())
@@ -191,6 +191,7 @@ int SyncClient::_connect(const IPAddress& ip, uint16_t port)
   _attachCallbacks_Disconnect();
 
 #if ASYNC_TCP_SSL_ENABLED
+
   if (_client->connect(ip, port, secure))
 #else
   if (_client->connect(ip, port))
@@ -208,9 +209,9 @@ int SyncClient::_connect(const IPAddress& ip, uint16_t port)
 /////////////////////////////////////////////////
 
 #if ASYNC_TCP_SSL_ENABLED
-int SyncClient::connect(const char *host, uint16_t port, bool secure)
+  int SyncClient::connect(const char *host, uint16_t port, bool secure)
 #else
-int SyncClient::connect(const char *host, uint16_t port)
+  int SyncClient::connect(const char *host, uint16_t port)
 #endif
 {
   if (connected())
@@ -232,6 +233,7 @@ int SyncClient::connect(const char *host, uint16_t port)
   _attachCallbacks_Disconnect();
 
 #if ASYNC_TCP_SSL_ENABLED
+
   if (_client->connect(host, port, secure))
 #else
   if (_client->connect(host, port))
@@ -601,65 +603,65 @@ int SyncClient::read(uint8_t *data, size_t len)
     return -1;
 
   size_t readSoFar = 0;
-  
-  while (_rx_buffer != NULL && (len - readSoFar) >= _rx_buffer->available()) 
+
+  while (_rx_buffer != NULL && (len - readSoFar) >= _rx_buffer->available())
   {
     cbuf *b = _rx_buffer;
     _rx_buffer = _rx_buffer->next;
     size_t toRead = b->available();
     readSoFar += b->read((char*)(data + readSoFar), toRead);
-    
-    if (connected()) 
+
+    if (connected())
     {
       _client->ack(b->size() - 1);
     }
-    
+
     delete b;
   }
-  
-  if (_rx_buffer != NULL && readSoFar < len) 
+
+  if (_rx_buffer != NULL && readSoFar < len)
   {
     readSoFar += _rx_buffer->read((char*)(data + readSoFar), (len - readSoFar));
   }
-  
+
   return readSoFar;
 }
 
 /////////////////////////////////////////////////
 
-int SyncClient::read() 
+int SyncClient::read()
 {
   uint8_t res = 0;
-  
+
   if (read(&res, 1) != 1)
     return -1;
-    
+
   return res;
 }
 
 /////////////////////////////////////////////////
 
-bool SyncClient::flush(unsigned int maxWaitMs) 
+bool SyncClient::flush(unsigned int maxWaitMs)
 {
   (void) maxWaitMs;
-  
+
   if (_tx_buffer == NULL || !connected())
     return false;
-    
-  if (_tx_buffer->available()) 
+
+  if (_tx_buffer->available())
   {
     while (connected() && !_client->canSend())
       delay(0);
-      
+
     if (_client == NULL || _tx_buffer == NULL)
       return false;
-      
+
     _sendBuffer();
   }
-  
+
   return true;
 }
 
 /////////////////////////////////////////////////
 
-#endif		// _TEENSY41_ASYNC_TCP_SYNC_CLIENT_IMPL_H_
+#endif    // _TEENSY41_ASYNC_TCP_SYNC_CLIENT_IMPL_H_

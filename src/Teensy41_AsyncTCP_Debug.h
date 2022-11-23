@@ -1,22 +1,22 @@
 /****************************************************************************************************************************
   Teensy41_AsyncTCP_Debug.h
-  
+
   Teensy41_AsyncTCP is a library for Teensy4.1 using LwIP-based QNEthernet
-  
+
   Based on and modified from :
-  
+
   1) ESPAsyncTCP    (https://github.com/me-no-dev/ESPAsyncTCP)
   2) AsyncTCP       (https://github.com/me-no-dev/AsyncTCP)
-  
+
   Built by Khoi Hoang https://github.com/khoih-prog/Teensy41_AsyncTCP
-  
-  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License 
+
+  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
   as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
- 
+
   Version: 1.1.0
-  
+
   Version Modified By   Date      Comments
   ------- -----------  ---------- -----------
   1.0.0    K Hoang     17/03/2022 Initial coding to support only Teensy4.1 using QNEthernet
@@ -57,8 +57,8 @@
 
 /////////////////////////////////////////////////////////
 
-#define ASYNC_TCP_DEBUG(...) 				if(_TEENSY41_ASYNC_TCP_LOGLEVEL_>3) { T41_ASYNC_PRINTF(__VA_ARGS__); }
-#define ASYNC_TCP_SSL_DEBUG(...) 		if(_TEENSY41_ASYNC_TCP_LOGLEVEL_>3) { T41_ASYNC_PRINTF(__VA_ARGS__); }
+#define ASYNC_TCP_DEBUG(...)        if(_TEENSY41_ASYNC_TCP_LOGLEVEL_>3) { T41_ASYNC_PRINTF(__VA_ARGS__); }
+#define ASYNC_TCP_SSL_DEBUG(...)    if(_TEENSY41_ASYNC_TCP_LOGLEVEL_>3) { T41_ASYNC_PRINTF(__VA_ARGS__); }
 
 #define ASYNC_TCP_ASSERT( a ) do{ if(!(a)){T41_ASYNC_PRINTF("ASSERT: %s %u \n", __FILE__, __LINE__);}}while(0)
 
