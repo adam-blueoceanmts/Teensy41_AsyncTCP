@@ -291,11 +291,12 @@ size_t AsyncPrinter::_sendBuffer()
   {
     // Connection should be aborted instead
     ATCP_LOGERROR("AsyncPrinter:_sendBuffer: Error NULL out");
+    return 0;
   }
 
   _tx_buffer->read(out, available);
   size_t sent = _client->write(out, available);
-  delete out;
+  delete[] out;
 
   return sent;
 }

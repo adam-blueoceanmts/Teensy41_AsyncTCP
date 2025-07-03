@@ -517,7 +517,7 @@ void AsyncTCPbuffer::_sendBuffer()
       ATCP_LOGDEBUG("delete cbuf");
     }
 
-    delete out;
+    delete[] out;
   }
 }
 
@@ -635,11 +635,13 @@ size_t AsyncTCPbuffer::_handleRxBuffer(uint8_t *buf, size_t len)
       {
         //TODO: What action should this be ?
         ATCP_LOGERROR("AsyncTCPbuffer::_handleRxBuffer: Error NULL buffer");
+        return 0;
       }
 
       _RXbuffer->peek((char *) b, BufferAvailable);
       r = _cbRX(b, BufferAvailable);
       _RXbuffer->remove(r);
+      delete[] b;
     }
 
     if (r == BufferAvailable && buf && (len > 0))
