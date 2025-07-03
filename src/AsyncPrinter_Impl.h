@@ -94,14 +94,21 @@ void AsyncPrinter::onClose(ApCloseHandler cb, void *arg)
 
 int AsyncPrinter::connect(IPAddress ip, uint16_t port)
 {
-  if (_client != NULL && connected())
-    return 0;
+  if (_client != NULL)
+  {
+    if (connected())
+      return 0;
+
+    delete _client;
+    _client = NULL;
+  }
 
   _client = new (std::nothrow) AsyncClient();
 
   if (_client == NULL)
   {
     ATCP_LOGERROR("AsyncPrinter::connect(ip): Error NULL _client");
+    return 0;
   }
 
   _client->onConnect([](void *obj, AsyncClient * c)
@@ -118,6 +125,9 @@ int AsyncPrinter::connect(IPAddress ip, uint16_t port)
     return connected();
   }
 
+  delete _client;
+  _client = NULL;
+
   return 0;
 }
 
@@ -125,14 +135,21 @@ int AsyncPrinter::connect(IPAddress ip, uint16_t port)
 
 int AsyncPrinter::connect(const char *host, uint16_t port)
 {
-  if (_client != NULL && connected())
-    return 0;
+  if (_client != NULL)
+  {
+    if (connected())
+      return 0;
+
+    delete _client;
+    _client = NULL;
+  }
 
   _client = new (std::nothrow) AsyncClient();
 
   if (_client == NULL)
   {
     ATCP_LOGERROR("AsyncPrinter::connect(host): Error NULL _client");
+    return 0;
   }
 
   _client->onConnect([](void *obj, AsyncClient * c)
@@ -147,6 +164,9 @@ int AsyncPrinter::connect(const char *host, uint16_t port)
 
     return connected();
   }
+
+  delete _client;
+  _client = NULL;
 
   return 0;
 }
@@ -166,7 +186,7 @@ void AsyncPrinter::_onConnect(AsyncClient *c)
 
   _tx_buffer = new (std::nothrow) cbuf(_tx_buffer_size);
 
-  if (_tx_buffer)
+  if (!_tx_buffer)
   {
     ATCP_LOGERROR("AsyncPrinter::_onConnect: Error NULL _tx_buffer");
   }
