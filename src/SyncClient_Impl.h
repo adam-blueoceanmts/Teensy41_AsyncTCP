@@ -388,26 +388,39 @@ size_t SyncClient::_sendBuffer()
   if (_client == NULL || _tx_buffer == NULL)
     return 0;
 
-  size_t available = _tx_buffer->available();
-
-  if (!connected() || !_client->canSend() || available == 0)
+  if (!connected() || !_client->canSend() || _tx_buffer->available() == 0)
     return 0;
 
-  size_t sendable = _client->space();
+  size_t sent_total = 0;
 
-  if (sendable < available)
-    available = sendable;
+  // Attempt to send as much buffered data as possible while accounting for
+  // partial writes. Data is only removed from the buffer after lwIP accepts it
+  // to prevent truncation on short writes.
+  while (connected() && _client->canSend() && (_tx_buffer->available() > 0))
+  {
+    size_t available = _tx_buffer->available();
+    size_t sendable = _client->space();
 
-  char *out = new (std::nothrow) char[available];
+    if (sendable < available)
+      available = sendable;
 
-  if (out == NULL)
-    return 0;
+    char *out = new (std::nothrow) char[available];
 
-  _tx_buffer->read(out, available);
-  size_t sent = _client->write(out, available);
-  delete[] out;
+    if (out == NULL)
+      break;
 
-  return sent;
+    _tx_buffer->peek(out, available);
+    size_t sent = _client->write(out, available);
+    _tx_buffer->remove(sent);
+    delete[] out;
+
+    sent_total += sent;
+
+    if (sent != available)
+      break;
+  }
+
+  return sent_total;
 }
 
 /////////////////////////////////////////////////
