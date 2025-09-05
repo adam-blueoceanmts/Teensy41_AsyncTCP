@@ -354,7 +354,7 @@ inline void clearTcpCallbacks(tcp_pcb* pcb)
   }
 
   //tcp_setprio(_pcb, TCP_PRIO_MIN);
-  tcp_setprio(_pcb, TCP_PRIO_NORMAL);
+  tcp_setprio(pcb, TCP_PRIO_NORMAL);
 
 #if ASYNC_TCP_SSL_ENABLED
   _pcb_secure = secure;
@@ -586,14 +586,6 @@ size_t AsyncClient::add(const char* data, size_t size, uint8_t apiflags)
 #endif
 
   size_t will_send = (room < size) ? room : size;
-
-  // Ensure lwIP copies the data to its buffers. Without this flag the caller's
-  // buffer must remain valid until the data is acknowledged, which is not the
-  // case for many uses within this library. Omitting the copy flag can lead to
-  // transmitted data becoming corrupted when the original buffer is freed or
-  // reused before the TCP stack is finished with it.
-  apiflags |= TCP_WRITE_FLAG_COPY;
-
   err_t err = tcp_write(_pcb, data, will_send, apiflags);
 
   if (err != ERR_OK)
@@ -771,21 +763,13 @@ void AsyncClient::_error(err_t err)
 
   if (_pcb)
   {
-#if ASYNC_TCP_SSL_ENABLED
-
-    if (_pcb_secure)
-    {
-      tcp_ssl_free(_pcb);
-    }
-
-#endif
-
+    // Per lwIP raw API contract, tcp_err callback is called after lwIP has
+    // already freed/deallocated the pcb. Do not call any tcp_* or SSL functions
+    // on _pcb here. Just mark the pcb as gone.
     // At this callback _pcb is possible already freed. Thus, no calls are
     // made to set to NULL other callbacks.
     // KH add, from v1.1.0, to free _pcb
     clearTcpCallbacks(_pcb);
-    tcp_close(_pcb);
-    //////
 
     _pcb = NULL;
   }
@@ -1078,7 +1062,11 @@ void AsyncClient::_poll(std::shared_ptr<ACErrorTracker>& errorTracker, tcp_pcb* 
 {
   (void)name;
 
+#if LWIP_VERSION_MAJOR == 1
+  reinterpret_cast<AsyncClient*>(arg)->_dns_found(const_cast<ip_addr *>(ipaddr));
+#else
   reinterpret_cast<AsyncClient*>(arg)->_dns_found(p);
+#endif
 }
 
 /////////////////////////////////////////////////
@@ -1785,7 +1773,7 @@ void AsyncServer::begin()
   }
 
   //tcp_setprio(_pcb, TCP_PRIO_MIN);
-  tcp_setprio(_pcb, TCP_PRIO_NORMAL);
+  tcp_setprio(pcb, TCP_PRIO_NORMAL);
 
   ip_addr_t local_addr;
 

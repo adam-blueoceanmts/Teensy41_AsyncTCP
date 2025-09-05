@@ -51,7 +51,7 @@ AsyncTCPbuffer::AsyncTCPbuffer(AsyncClient* client)
   _client = client;
   _TXbufferWrite = new (std::nothrow) cbuf(TCP_MSS);
   _TXbufferRead = _TXbufferWrite;
-  _RXbuffer = new (std::nothrow) cbuf(100);
+  _RXbuffer = new (std::nothrow) cbuf(TCP_MSS);
   _RXmode = ATB_RX_MODE_FREE;
   _rxSize = 0;
   _rxTerminator = 0x00;
@@ -148,19 +148,38 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len)
 
   while (bytesLeft)
   {
+    // Safety: bail if client died mid-loop
+    if (_client == NULL || !_client->connected())
+    {
+      break;
+    }
+
+    if (_TXbufferWrite == NULL)
+    {
+      T41_ASYNC_LOGERROR("AsyncTCPbuffer::write: _TXbufferWrite is NULL");
+      break;
+    }
+
     size_t w = _TXbufferWrite->write((const char*) data, bytesLeft);
     bytesLeft -= w;
     data += w;
     _sendBuffer();
 
+    if (bytesLeft == 0)
+    {
+      break;
+    }
+
     // add new buffer since we have more data
-    if (_TXbufferWrite->full() && bytesLeft > 0)
+    if (_TXbufferWrite->full())
     {
       cbuf * next = new (std::nothrow) cbuf(TCP_MSS);
 
       if (next == NULL)
       {
         T41_ASYNC_LOGERROR("AsyncTCPbuffer::write: Error out of Heap");
+        // Can't enqueue more; return what we managed to buffer
+        break;
       }
       else
       {
@@ -173,9 +192,16 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len)
       // move ptr for next data
       _TXbufferWrite = next;
     }
+    else if (w == 0)
+    {
+      // No progress (not full but nothing written) => avoid infinite loop
+      T41_ASYNC_LOGERROR("AsyncTCPbuffer::write: no progress, aborting");
+      break;
+    }
   }
 
-  return len;
+  // Return how many bytes we actually enqueued
+  return len - bytesLeft;
 }
 
 /////////////////////////////////////////////////
@@ -185,15 +211,25 @@ size_t AsyncTCPbuffer::write(const uint8_t *data, size_t len)
 */
 void AsyncTCPbuffer::flush()
 {
-  while (!_TXbufferWrite->empty())
+  // Drain the entire TX chain, not just the write buffer
+  while (_client && connected())
   {
+    // If there is nothing pending in the current buffer and no next buffer, we are done
+    if (!_TXbufferRead || (_TXbufferRead->available() == 0 && _TXbufferRead->next == NULL))
+    {
+      break;
+    }
+
+    // Wait until the client can accept data
     while (connected() && !_client->canSend())
     {
       delay(0);
     }
 
     if (!connected())
+    {
       return;
+    }
 
     _sendBuffer();
   }
@@ -462,38 +498,48 @@ void AsyncTCPbuffer::_sendBuffer()
 {
   //ATCP_LOGDEBUG("_sendBuffer...");
 
-  size_t available = _TXbufferRead->available();
-
-  if (available == 0 || _client == NULL || !_client->connected() || !_client->canSend())
+  if (_client == NULL || _TXbufferRead == NULL)
   {
     return;
   }
 
-  while (connected() && (_client->space() > 0) && (_TXbufferRead->available() > 0) && _client->canSend())
+  size_t available = _TXbufferRead->available();
+
+  if (available == 0 || !_client->connected() || !_client->canSend())
   {
+    return;
+  }
+
+  while (connected() && _client->canSend() && (_TXbufferRead->available() > 0))
+  {
+    size_t space = _client->space();
+
+    if (space == 0)
+    {
+      break;
+    }
 
     available = _TXbufferRead->available();
 
-    if (available > _client->space())
+    if (available > space)
     {
-      available = _client->space();
+      available = space;
     }
 
-    char *out = new (std::nothrow) char[available];
-
-    if (out == NULL)
+    // Cap chunk size to reduce heap pressure and fragmentation
+    if (available > TCP_MSS)
     {
-      ATCP_LOGDEBUG("to less heap, try later.");
-
-      return;
+      available = TCP_MSS;
     }
+
+    // Use a stack buffer to avoid per-chunk heap alloc/free
+    char out[TCP_MSS];
 
     // read data from buffer
     _TXbufferRead->peek(out, available);
 
-    // send data
-    size_t send = _client->write((const char*) out, available);
-
+    // send data (ensure copy since 'out' is on the stack)
+    size_t send = _client->write((const char*) out, available, ASYNC_WRITE_FLAG_COPY);
     if (send != available)
     {
       ATCP_LOGDEBUG3("_sendBuffer write failed send:", send, ", available:", available);
@@ -504,10 +550,16 @@ void AsyncTCPbuffer::_sendBuffer()
       }
     }
 
-    // remove really send data from buffer
+    // remove really sent data from buffer
     _TXbufferRead->remove(send);
 
-    // if buffer is empty and there is a other buffer in chain delete the empty one
+    // if no progress, avoid spinning forever
+    if (send == 0)
+    {
+      break;
+    }
+
+    // if buffer is empty and there is another buffer in chain delete the empty one
     if (_TXbufferRead->available() == 0 && _TXbufferRead->next != NULL)
     {
       cbuf * old = _TXbufferRead;
@@ -516,8 +568,6 @@ void AsyncTCPbuffer::_sendBuffer()
 
       ATCP_LOGDEBUG("delete cbuf");
     }
-
-    delete[] out;
   }
 }
 
@@ -572,16 +622,29 @@ void AsyncTCPbuffer::_rxData(uint8_t *buf, size_t len)
     {
       // to less space
       ATCP_LOGDEBUG("_rxData buffer full try resize");
-
       _RXbuffer->resizeAdd((len + _RXbuffer->room()));
-
-      if (_RXbuffer->room() < len)
-      {
-        ATCP_LOGDEBUG1("_rxData buffer to full can only handle:", _RXbuffer->room());
-      }
     }
 
-    _RXbuffer->write((const char *) (buf), len);
+    size_t wrote = _RXbuffer->write((const char *) (buf), len);
+
+    if (wrote < len)
+    {
+      // Attempt one more resize and retry for the remaining bytes
+      size_t remaining = len - wrote;
+      _RXbuffer->resizeAdd(remaining);
+      size_t wrote2 = _RXbuffer->write((const char *)(buf + wrote), remaining);
+      if (wrote2 < remaining)
+      {
+        size_t dropped = remaining - wrote2;
+        ATCP_LOGERROR("AsyncTCPbuffer::_rxData: RX buffer overflow; dropped bytes");
+        // Opportunistically deliver the undelivered tail directly if FREE mode has a consumer
+        if (_RXmode == ATB_RX_MODE_FREE && _cbRX && wrote2 < remaining)
+        {
+          size_t tail = remaining - wrote2;
+          (void)_cbRX((uint8_t *)(buf + wrote + wrote2), tail);
+        }
+      }
+    } // <-- MISSING BRACE FIXED HERE
   }
 
   if (!_RXbuffer->empty() && _RXmode != ATB_RX_MODE_NONE)
@@ -596,9 +659,9 @@ void AsyncTCPbuffer::_rxData(uint8_t *buf, size_t len)
   }
 
   // clean up ram
-  if (_RXbuffer->empty() && _RXbuffer->room() != 100)
+  if (_RXbuffer->empty() && _RXbuffer->room() != TCP_MSS)
   {
-    _RXbuffer->resize(100);
+    _RXbuffer->resize(TCP_MSS);
   }
 }
 
@@ -629,23 +692,41 @@ size_t AsyncTCPbuffer::_handleRxBuffer(uint8_t *buf, size_t len)
 
     if (BufferAvailable > 0)
     {
-      uint8_t * b = new (std::nothrow) uint8_t[BufferAvailable];
-
-      if (b == NULL)
+      // Process buffered data in chunks without heap allocs
+      size_t totalRemoved = 0;
+      while (true)
       {
-        //TODO: What action should this be ?
-        ATCP_LOGERROR("AsyncTCPbuffer::_handleRxBuffer: Error NULL buffer");
-        return 0;
-      }
+        size_t availNow = _RXbuffer->available();
+        if (availNow == 0)
+          break;
 
-      _RXbuffer->peek((char *) b, BufferAvailable);
-      r = _cbRX(b, BufferAvailable);
-      _RXbuffer->remove(r);
-      delete[] b;
+        size_t toPeek = availNow;
+        if (toPeek > TCP_MSS) toPeek = TCP_MSS;
+
+        uint8_t chunk[TCP_MSS];
+        _RXbuffer->peek((char *)chunk, toPeek);
+
+        size_t consumed = _cbRX(chunk, toPeek);
+
+        if (consumed > toPeek)
+          consumed = toPeek; // safety
+
+        if (consumed == 0)
+          break; // consumer can't take more now
+
+        _RXbuffer->remove(consumed);
+        totalRemoved += consumed;
+
+        // If consumer did not consume the whole peeked chunk, stop to avoid re-sending
+        if (consumed < toPeek)
+          break;
+      }
+      r = totalRemoved;
     }
 
     if (r == BufferAvailable && buf && (len > 0))
     {
+      // Pass through the fresh bytes directly (still zero-copy for caller)
       return _cbRX(buf, len);
     }
     else
