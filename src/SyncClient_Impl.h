@@ -410,7 +410,7 @@ size_t SyncClient::_sendBuffer()
       break;
 
     _tx_buffer->peek(out, available);
-    size_t sent = _client->write(out, available);
+    size_t sent = _client->write((const char*) out, available, ASYNC_WRITE_FLAG_COPY);
     _tx_buffer->remove(sent);
     delete[] out;
 
