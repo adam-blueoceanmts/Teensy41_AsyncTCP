@@ -43,6 +43,7 @@
 /////////////////////////////////////////////////
 
 #include "Client.h"
+#include <vector>
 
 // Needed for Arduino core releases prior to 2.5.0, because of changes
 // made to accommodate Arduino core 2.5.0
@@ -53,7 +54,6 @@
 
 /////////////////////////////////////////////////
 
-class cbuf;
 class AsyncClient;
 
 /////////////////////////////////////////////////
@@ -62,9 +62,11 @@ class SyncClient: public Client
 {
   private:
     AsyncClient *_client;
-    cbuf *_tx_buffer;
+    std::vector<uint8_t> _tx_buffer;
+    size_t _tx_buffer_head;
     size_t _tx_buffer_size;
-    cbuf *_rx_buffer;
+    std::vector<uint8_t> _rx_buffer;
+    size_t _rx_buffer_head;
     int *_ref;
 
     size_t _sendBuffer();

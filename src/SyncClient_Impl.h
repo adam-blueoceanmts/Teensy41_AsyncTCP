@@ -38,7 +38,7 @@
 
 #include "Teensy41_AsyncTCP.hpp"
 
-#include "cbuf.hpp"
+#include <algorithm>
 
 /////////////////////////////////////////////////
 
@@ -70,11 +70,14 @@ static_assert(LWIP_NETIF_TX_SINGLE_PBUF, "Required, tcp_write() must always copy
 
 SyncClient::SyncClient(size_t txBufLen)
   : _client(NULL)
-  , _tx_buffer(NULL)
+  , _tx_buffer()
+  , _tx_buffer_head(0)
   , _tx_buffer_size(txBufLen)
-  , _rx_buffer(NULL)
+  , _rx_buffer()
+  , _rx_buffer_head(0)
   , _ref(NULL)
 {
+  _tx_buffer.reserve(txBufLen);
   ref();
 }
 
@@ -82,11 +85,14 @@ SyncClient::SyncClient(size_t txBufLen)
 
 SyncClient::SyncClient(AsyncClient *client, size_t txBufLen)
   : _client(client)
-  , _tx_buffer(new (std::nothrow) cbuf(txBufLen))
+  , _tx_buffer()
+  , _tx_buffer_head(0)
   , _tx_buffer_size(txBufLen)
-  , _rx_buffer(NULL)
+  , _rx_buffer()
+  , _rx_buffer_head(0)
   , _ref(NULL)
 {
+  _tx_buffer.reserve(txBufLen);
   if (ref() > 0 && _client != NULL)
     _attachCallbacks();
 }
@@ -112,19 +118,10 @@ void SyncClient::_release()
     _client = NULL;
   }
 
-  if (_tx_buffer != NULL)
-  {
-    cbuf *b = _tx_buffer;
-    _tx_buffer = NULL;
-    delete b;
-  }
-
-  while (_rx_buffer != NULL)
-  {
-    cbuf *b = _rx_buffer;
-    _rx_buffer = _rx_buffer->next;
-    delete b;
-  }
+  _tx_buffer.clear();
+  _tx_buffer_head = 0;
+  _rx_buffer.clear();
+  _rx_buffer_head = 0;
 }
 
 /////////////////////////////////////////////////
@@ -278,18 +275,13 @@ SyncClient & SyncClient::operator=(const SyncClient &other)
   ref();
 
   --*rhsref;
-  // Why do I not test _tx_buffer for != NULL and free?
-  // I allow for the lh target container, to be a copy of an active
-  // connection. Thus we are just reusing the container.
-  // The above unref() handles releaseing the previous client of the container.
-  _tx_buffer_size = other._tx_buffer_size;
-  _tx_buffer = other._tx_buffer;
-  _client = other._client;
-
-  if (_client != NULL && _tx_buffer == NULL)
-    _tx_buffer = new (std::nothrow) cbuf(_tx_buffer_size);
-
-  _rx_buffer = other._rx_buffer;
+  // Transfer buffer contents and state
+  _tx_buffer_size    = other._tx_buffer_size;
+  _tx_buffer         = other._tx_buffer;
+  _tx_buffer_head    = other._tx_buffer_head;
+  _client            = other._client;
+  _rx_buffer         = other._rx_buffer;
+  _rx_buffer_head    = other._rx_buffer_head;
 
   if (_client)
     _attachCallbacks();
@@ -315,24 +307,18 @@ SyncClient & SyncClient::operator=(const SyncClient &other)
 
   _tx_buffer_size = other._tx_buffer_size;
 
-  if (_tx_buffer != NULL)
-  {
-    cbuf *b = _tx_buffer;
-    _tx_buffer = NULL;
-    delete b;
-  }
-
-  while (_rx_buffer != NULL)
-  {
-    cbuf *b = _rx_buffer;
-    _rx_buffer = b->next;
-    delete b;
-  }
+  _tx_buffer.clear();
+  _tx_buffer_head = 0;
+  _rx_buffer.clear();
+  _rx_buffer_head = 0;
 
   if (other._client != NULL)
-    _tx_buffer = new (std::nothrow) cbuf(other._tx_buffer_size);
+    _client = other._client;
 
-  _client = other._client;
+  _tx_buffer      = other._tx_buffer;
+  _tx_buffer_head = other._tx_buffer_head;
+  _rx_buffer      = other._rx_buffer;
+  _rx_buffer_head = other._rx_buffer_head;
 
   if (_client)
     _attachCallbacks();
@@ -385,39 +371,33 @@ bool SyncClient::stop(unsigned int maxWaitMs)
 
 size_t SyncClient::_sendBuffer()
 {
-  if (_client == NULL || _tx_buffer == NULL)
+  if (_client == NULL)
     return 0;
 
-  if (!connected() || !_client->canSend() || _tx_buffer->available() == 0)
+  if (!connected() || !_client->canSend() || (_tx_buffer_head >= _tx_buffer.size()))
     return 0;
 
   size_t sent_total = 0;
 
-  // Attempt to send as much buffered data as possible while accounting for
-  // partial writes. Data is only removed from the buffer after lwIP accepts it
-  // to prevent truncation on short writes.
-  while (connected() && _client->canSend() && (_tx_buffer->available() > 0))
+  while (connected() && _client->canSend() && (_tx_buffer_head < _tx_buffer.size()))
   {
-    size_t available = _tx_buffer->available();
+    size_t available = _tx_buffer.size() - _tx_buffer_head;
     size_t sendable = _client->space();
-
     if (sendable < available)
       available = sendable;
 
-    char *out = new (std::nothrow) char[available];
-
-    if (out == NULL)
-      break;
-
-    _tx_buffer->peek(out, available);
-    size_t sent = _client->write((const char*) out, available, ASYNC_WRITE_FLAG_COPY);
-    _tx_buffer->remove(sent);
-    delete[] out;
-
+    size_t sent = _client->write((const char*)(&_tx_buffer[_tx_buffer_head]), available, ASYNC_WRITE_FLAG_COPY);
+    _tx_buffer_head += sent;
     sent_total += sent;
 
     if (sent != available)
       break;
+
+    if (_tx_buffer_head == _tx_buffer.size())
+    {
+      _tx_buffer.clear();
+      _tx_buffer_head = 0;
+    }
   }
 
   return sent_total;
@@ -428,31 +408,14 @@ size_t SyncClient::_sendBuffer()
 void SyncClient::_onData(void *data, size_t len)
 {
   _client->ackLater();
-  cbuf *b = new (std::nothrow) cbuf(len + 1);
-
-  if (b != NULL)
+  uint8_t *bytes = static_cast<uint8_t*>(data);
+  try
   {
-    b->write((const char *)data, len);
-
-    if (_rx_buffer == NULL)
-      _rx_buffer = b;
-    else
-    {
-      cbuf *p = _rx_buffer;
-
-      while (p->next != NULL)
-        p = p->next;
-
-      p->next = b;
-    }
+    _rx_buffer.insert(_rx_buffer.end(), bytes, bytes + len);
   }
-  else
+  catch (...)
   {
-    // We ran out of memory. This fail causes lost receive data.
-    // The connection should be closed in a manner that conveys something
-    // bad/abnormal has happened to the connection. Hence, we abort the
-    // connection to avoid possible data corruption.
-    // Note, callbacks maybe called.
+    // Ran out of memory; abort to avoid data corruption
     _client->abort();
   }
 }
@@ -465,13 +428,8 @@ void SyncClient::_onDisconnect()
   {
     _client = NULL;
   }
-
-  if (_tx_buffer != NULL)
-  {
-    cbuf *b = _tx_buffer;
-    _tx_buffer = NULL;
-    delete b;
-  }
+  _tx_buffer.clear();
+  _tx_buffer_head = 0;
 }
 
 /////////////////////////////////////////////////
@@ -480,14 +438,9 @@ void SyncClient::_onConnect(AsyncClient *c)
 {
   _client = c;
 
-  if (_tx_buffer != NULL)
-  {
-    cbuf *b = _tx_buffer;
-    _tx_buffer = NULL;
-    delete b;
-  }
-
-  _tx_buffer = new (std::nothrow) cbuf(_tx_buffer_size);
+  _tx_buffer.clear();
+  _tx_buffer_head = 0;
+  _tx_buffer.reserve(_tx_buffer_size);
   _attachCallbacks_AfterConnected();
 }
 
@@ -548,96 +501,80 @@ size_t SyncClient::write(uint8_t data)
 
 size_t SyncClient::write(const uint8_t *data, size_t len)
 {
-  if (_tx_buffer == NULL || !connected())
-  {
+  if (_client == NULL || !connected())
     return 0;
-  }
 
-  size_t toWrite = 0;
-  size_t toSend = len;
+  size_t written = 0;
 
-  while (_tx_buffer->room() < toSend)
+  while (written < len)
   {
-    toWrite = _tx_buffer->room();
-    _tx_buffer->write((const char*)data, toWrite);
+    size_t buffered = _tx_buffer.size() - _tx_buffer_head;
+    size_t space = (_tx_buffer_size > buffered) ? (_tx_buffer_size - buffered) : 0;
 
-    while (connected() && !_client->canSend())
-      delay(0);
+    if (space == 0)
+    {
+      while (connected() && !_client->canSend())
+        delay(0);
 
-    if (!connected())
-      return 0;
+      if (!connected())
+        return written;
 
-    _sendBuffer();
-    toSend -= toWrite;
+      _sendBuffer();
+      buffered = _tx_buffer.size() - _tx_buffer_head;
+      space = (_tx_buffer_size > buffered) ? (_tx_buffer_size - buffered) : 0;
+
+      if (space == 0)
+        break;
+    }
+
+    size_t toCopy = std::min(space, len - written);
+    _tx_buffer.insert(_tx_buffer.end(), data + written, data + written + toCopy);
+    written += toCopy;
   }
-
-  _tx_buffer->write((const char*)(data + (len - toSend)), toSend);
 
   if (connected() && _client->canSend())
     _sendBuffer();
 
-  return len;
+  return written;
 }
 
 /////////////////////////////////////////////////
 
 int SyncClient::available()
 {
-  if (_rx_buffer == NULL)
-    return 0;
-
-  size_t a = 0;
-  cbuf *b = _rx_buffer;
-
-  while (b != NULL)
-  {
-    a += b->available();
-    b = b->next;
-  }
-
-  return a;
+  return static_cast<int>(_rx_buffer.size() - _rx_buffer_head);
 }
 
 /////////////////////////////////////////////////
 
 int SyncClient::peek()
 {
-  if (_rx_buffer == NULL)
+  if (_rx_buffer_head >= _rx_buffer.size())
     return -1;
-
-  return _rx_buffer->peek();
+  return _rx_buffer[_rx_buffer_head];
 }
 
 /////////////////////////////////////////////////
 
 int SyncClient::read(uint8_t *data, size_t len)
 {
-  if (_rx_buffer == NULL)
+  size_t available = _rx_buffer.size() - _rx_buffer_head;
+  if (available == 0)
     return -1;
 
-  size_t readSoFar = 0;
-
-  while (_rx_buffer != NULL && (len - readSoFar) >= _rx_buffer->available())
+  size_t toRead = std::min(len, available);
+  std::copy(_rx_buffer.begin() + _rx_buffer_head,
+            _rx_buffer.begin() + _rx_buffer_head + toRead,
+            data);
+  _rx_buffer_head += toRead;
+  if (_rx_buffer_head == _rx_buffer.size())
   {
-    cbuf *b = _rx_buffer;
-    _rx_buffer = _rx_buffer->next;
-    size_t toRead = b->available();
-    readSoFar += b->read((char*)(data + readSoFar), toRead);
-
-    if (connected())
-    {
-      _client->ack(b->size() - 1);
-    }
-
-    delete b;
+    _rx_buffer.clear();
+    _rx_buffer_head = 0;
   }
-
-  if (_rx_buffer != NULL && readSoFar < len)
-  {
-    readSoFar += _rx_buffer->read((char*)(data + readSoFar), (len - readSoFar));
-  }
-
-  return readSoFar;
+  if (toRead && connected())
+    _client->ack(toRead);
+  return static_cast<int>(toRead);
 }
 
 /////////////////////////////////////////////////
@@ -658,21 +595,21 @@ bool SyncClient::flush(unsigned int maxWaitMs)
 {
   (void) maxWaitMs;
 
-  if (_tx_buffer == NULL || !connected())
+  if (_client == NULL || !connected())
     return false;
 
-  if (_tx_buffer->available())
+  if (_tx_buffer_head < _tx_buffer.size())
   {
     while (connected() && !_client->canSend())
       delay(0);
 
-    if (_client == NULL || _tx_buffer == NULL)
+    if (_client == NULL)
       return false;
 
     _sendBuffer();
   }
 
-  return true;
+  return (_tx_buffer_head == _tx_buffer.size());
 }
 
 /////////////////////////////////////////////////
