@@ -295,30 +295,45 @@ void AsyncPrinter::close()
 
 size_t AsyncPrinter::_sendBuffer()
 {
-  size_t available = _tx_buffer->available();
+  size_t sent_total = 0;
 
-  if (!connected() || !_client->canSend() || available == 0)
+  if (!connected() || !_client->canSend() || _tx_buffer->available() == 0)
     return 0;
 
-  size_t sendable = _client->space();
-
-  if (sendable < available)
-    available = sendable;
-
-  char *out = new (std::nothrow) char[available];
-
-  if (out == NULL)
+  // Try to push out as much data as the client can currently accept. The
+  // buffer contents must remain untouched until we know how many bytes were
+  // actually queued in lwIP, otherwise unsent bytes would be lost.
+  while (connected() && _client->canSend() && (_tx_buffer->available() > 0))
   {
-    // Connection should be aborted instead
-    ATCP_LOGERROR("AsyncPrinter:_sendBuffer: Error NULL out");
-    return 0;
+    size_t available = _tx_buffer->available();
+    size_t sendable = _client->space();
+
+    if (sendable < available)
+      available = sendable;
+
+    char *out = new (std::nothrow) char[available];
+
+    if (out == NULL)
+    {
+      // Connection should be aborted instead
+      ATCP_LOGERROR("AsyncPrinter:_sendBuffer: Error NULL out");
+      break;
+    }
+
+    _tx_buffer->peek(out, available);
+    size_t sent = _client->write(out, available);
+    _tx_buffer->remove(sent);
+    delete[] out;
+
+    sent_total += sent;
+
+    // If we could not send everything, leave remaining data in the buffer for
+    // a later attempt.
+    if (sent != available)
+      break;
   }
 
-  _tx_buffer->read(out, available);
-  size_t sent = _client->write(out, available);
-  delete[] out;
-
-  return sent;
+  return sent_total;
 }
 
 /////////////////////////////////////////////////

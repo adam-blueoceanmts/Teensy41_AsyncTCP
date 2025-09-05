@@ -586,6 +586,14 @@ size_t AsyncClient::add(const char* data, size_t size, uint8_t apiflags)
 #endif
 
   size_t will_send = (room < size) ? room : size;
+
+  // Ensure lwIP copies the data to its buffers. Without this flag the caller's
+  // buffer must remain valid until the data is acknowledged, which is not the
+  // case for many uses within this library. Omitting the copy flag can lead to
+  // transmitted data becoming corrupted when the original buffer is freed or
+  // reused before the TCP stack is finished with it.
+  apiflags |= TCP_WRITE_FLAG_COPY;
+
   err_t err = tcp_write(_pcb, data, will_send, apiflags);
 
   if (err != ERR_OK)
